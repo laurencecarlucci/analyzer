@@ -1,4 +1,5 @@
 //===========Program to plot TDC and ADC data from root trees by Davison, Hesse, Losasda, Kerver, Porter, Bonilla, Horn, Thompson, Watkins, Brash==========
+//edited by Laurence Carlucci
 #include <iostream>
 #include <fstream>
 #include <TRandom.h>
@@ -23,10 +24,22 @@ const Double_t thetahigh = 100.5;
 
 //=============================================Method starts here for plotting===================================
 
-void luterplots(Int_t nrun, Double_t nscint=1.50) {
+void cosmic_chi2(Int_t nrun) {
 
-        Double_t vn = 2.997E08/nscint;
-	Double_t resolution = 0.0232*nscint*nscint-0.1061*nscint+0.1617;
+	Double_t nscint_max=1.6;  //upper bound for index of refraction
+	Double_t nscint_min=1.45; //lower bound for index of refraction
+	Double_t chi2_temp, chi2_lo, nscint_temp, nscint_lo, mult;
+	chi2_lo = -1; //uninitialized chi2 value to determine
+	nscint_temp = nscint_lo = nscint_min;
+	mult = 4.0;
+	
+	TH1F *htdcraw[Ntdc], *htdcadjusted[Ntdc], *hadcraw[Nadc], *hadccut[Nadc], *hadcadjusted[Nadc]; //Initialize histograms for drawing after loop for finding lowest chi2
+	TH1F *htpos, *hbpos, *htheta, *htheta2;	
+
+
+	for (int j = 0; j<10; j++){ 
+        Double_t vn = 2.997E08/nscint_temp;
+	Double_t resolution = 0.0232*nscint_temp*nscint_temp-0.1061*nscint_temp+0.1617;
         Double_t granularity = t_convert*vn/2.0;
         Double_t xpos_range = 0.30;
         Double_t dscint = 0.105; // distance between scintillators in metres
@@ -60,29 +73,12 @@ void luterplots(Int_t nrun, Double_t nscint=1.50) {
 
         //cout << "Opened rootfile and read in " << nevents_in_file << " events." << endl;
 
-//Create Histograms
-	TH1F *htdcraw[Ntdc], *htdcadjusted[Ntdc], *hadcraw[Nadc], *hadccut[Nadc], *hadcadjusted[Nadc];
-	TH1F *htpos = new TH1F("htpos","Top Position",xposbin,-1.0*xpos_range,xpos_range); //Histogram for top scintillator
-	TH1F *hbpos = new TH1F("hbpos","Bottom Position",xposbin,-1.0*xpos_range,xpos_range); //Histogram for bottom scintillator 
+//Fill Histograms
+	htpos = new TH1F("htpos","Top Position",xposbin,-1.0*xpos_range,xpos_range); //Histogram for top scintillator
+	hbpos = new TH1F("hbpos","Bottom Position",xposbin,-1.0*xpos_range,xpos_range); //Histogram for bottom scintillator 
 	//htheta = new TH1F("htheta","Angle (Degrees)",10*bin,-100.5,100.5); //Histogram for incidence angle
-	TH1F *htheta = new TH1F("htheta","Angle (Degrees)",nthetabins,thetalow,thetahigh); //Histogram for incidence angle
-	TH1F *hmeantime = new TH1F("hmeantime","Mean Time (ns)",100,-0.5,0.5); //Histogram for mean top/bottom time
-	TH1F *htheta2 = new TH1F("htheta2","Angle (Degrees)",nthetabins,thetalow,thetahigh); //Histogram for simulated incidence angle
-	TH1F *hadctop = new TH1F("hadctop","Top Energy Dep",bin,0,8500);
-	TH1F *hadcbot = new TH1F("hadcbot","Bottom Energy Dep",bin,0,8500);
-
-	TH1F *ovhadctop = new TH1F("ovhadctop", "Energy Deposits (Top: red, Bottom: blue)", bin, 0, 8500);
-	TH1F *ovhadcbot = new TH1F("ovhadcbot", "Energy Deposits", bin, 0, 8500);
-
-	TH1F *hadcoverlay = new TH1F("hadcoverlay","Top vs Bottom",bin,0,3);
-    TH2F *htopLeftvXpos = new TH2F("htopLeftvXpos","corrected top left paddle ADC vs. xpos top ",100,-0.30,0.30,50,500,2500);
-    TH2F *htopRightvXpos = new TH2F("htopRightvXpos","corrected top right paddle ADC vs. xpos top ",100,-0.30,0.30,50,500,2500);
-    TH2F *hbotLeftvXpos = new TH2F("hbotLeftvXpos","corrected bottom left paddle ADC vs. xpos bottom ",100,-0.30,0.30,50,500,2500);
-    TH2F *hbotRightvXpos = new TH2F("hbotRightvXpos","corrected bottom right paddle ADC vs. xpos bottom ",100,-0.30,0.30,50,500,2500);
-    TH2F *htopadctheta = new TH2F("htopadctheta","corrected top ADC vs. theta ",1000,-60.0,60.0,200,0,4500);
-    TH2F *hbotadctheta = new TH2F("hbotadctheta","corrected bottom ADC vs. theta ",1000,-60.0,60.0,200,0,4500);
-
-
+	htheta = new TH1F("htheta","Angle (Degrees)",nthetabins,thetalow,thetahigh); //Histogram for incidence angle
+	htheta2 = new TH1F("htheta2","Angle (Degrees)",nthetabins,thetalow,thetahigh); //Histogram for simulated incidence angle
     //cout << "Defined first set of histograms ... " << endl;
 
 	for ( int i = 0; i < Ntdc ; i++) {
@@ -179,7 +175,7 @@ void luterplots(Int_t nrun, Double_t nscint=1.50) {
 					htdcadjusted[i]->Fill(tdc[i]);
 				}
 			}//End TDC for loop
-
+			
                         Bool_t good_bl = (abs(tdc[bl]+tdccorrect[bl]-2000)<200.0);
                         Bool_t good_br = (abs(tdc[br]+tdccorrect[br]-2000)<200.0);
                         Bool_t good_tl = (abs(tdc[tl]+tdccorrect[tl]-2000)<200.0);
@@ -215,88 +211,28 @@ void luterplots(Int_t nrun, Double_t nscint=1.50) {
 		    		if(abs(theta)<=85.0) htheta->Fill(theta);
 		    		if(abs(theta2)<=85.0) htheta2->Fill(theta2);
 			}
-
-			htopLeftvXpos->Fill(xtop,etl); 
-			htopRightvXpos->Fill(xtop,etr); 
-			hbotLeftvXpos->Fill(xbottom,ebl); 
-			hbotRightvXpos->Fill(xbottom,ebr); 
-		    
-			htopadctheta->Fill(theta,(etl+etr)/2.0); 
-			hbotadctheta->Fill(theta,(ebl+ebr)/2.0); 
-			hadctop->Fill((etl+etr)/2.0); 
-			hadcbot->Fill((ebl+ebr)/2.0); 
-
-			ovhadctop->Fill((etl+etr)/2.0);
-			ovhadcbot->Fill((ebl+ebr)/2.0);			
-
-			hadcoverlay->Fill((etl+etr)/(ebl+ebr));
-			hmeantime->Fill(xmeantime);
                     }
 
 	} //End of loop over events
-	
-    
+	//const Int_t nxbins = htheta->GetNbinsX();
+        //Double_t res[nxbins],x[nxbins];
+	chi2_temp = htheta->Chi2Test(htheta2,"UW P CHI2");
+	cout << chi2_temp<< endl;
+	if (chi2_lo < 0){		//initially setting chi2_lo to the first chi2 value calculated (chi2_temp)	
+	  chi2_lo = chi2_temp;
+	}	
+	else if (chi2_temp < chi2_lo){	//if a lower chi2 value is found, set chi2_lo & nscint_lo to the current values (chi2_temp & nscint_temp)
+	  chi2_lo = chi2_temp;
+	  nscint_lo = nscint_temp;
+	}
+	else {				//reverse the sign of the multiplier if the current chi2 value is greater than chi2_lo
+	  mult*=-1;
+	}
+	j++;				//increment loop	
+	nscint_temp+=(nscint_min+nscint_max)/(mult*j);	//add/subtract [(nscint_min+nscint_max)/(4*j)] to/from  nscint_temp 
+}	
 //=======================================Canvases=============================
-
-//Draw TDC and ADC raw data
-    
- 	TCanvas *tdc_canvas = new TCanvas("tdc_canvas","Raw ADC spectra",100,100,600,600);
-   	tdc_canvas->Divide(2,2);
-   	for ( int i = bl; i <= tr ; i++) {
-      			tdc_canvas->cd(i-bl+1);
-				hadcraw[i]->Draw();
-				//hadccut[i]->Draw();
-      			//htdcadjusted[i]->Draw();
-	}
- 	TCanvas *tdca_canvas = new TCanvas("tdca_canvas","Adjusted TDC spectra",112,112,600,600);
-   	tdca_canvas->Divide(2,2);
-   	for ( int i = bl; i <= tr ; i++) {
-      			tdca_canvas->cd(i-bl+1);
-				//hadcraw[i]->Draw();
-				//hadccut[i]->Draw();
-      			htdcadjusted[i]->Draw();
-	}
-
-
-        TCanvas *adc_canvas = new TCanvas("adc_canvas","Corrected ADC spectra",125,125,600,600);
-        adc_canvas->Divide(2,2);
-        for ( int i = 0; i <= 3 ; i++) {
-                		adc_canvas->cd(i+1);
-				//hadcraw[i]->Draw();
-				//hadccut[i]->Draw();                
-				hadcadjusted[i]->Draw();
-        }
-
- 	TCanvas *adcpos = new TCanvas("adcpos","ADC vs xpos",150,150,600,600);
- 
-	adcpos->Divide(2,2);
-	adcpos->cd(1);
-	htopLeftvXpos->Draw("COLZ");
-	adcpos->cd(2);
-	htopRightvXpos->Draw("COLZ");
-	adcpos->cd(3);
-	hbotLeftvXpos->Draw("COLZ");
-	adcpos->cd(4);
-	hbotRightvXpos->Draw("COLZ");
- 	
-	TCanvas *adctheta = new TCanvas("adctheta","ADC vs theta",175,175,600,600);
- 
-	adctheta->Divide(2,2);
-	adctheta->cd(1);
-	htopadctheta->Draw("COLZ");
-	adctheta->cd(2);
-	hbotadctheta->Draw("COLZ");
-	adctheta->cd(3);
-		
- //use a TProfile to convert the 2-d to 1-d problem
- 	TF1 *myLeBronFit = new TF1("myLeBronFit","[0]*(1.0+[1]*cos(x*3.14159/180.0))",-60.0,60.0);
-	TProfile *prof = htopadctheta->ProfileX();
- 	prof->Fit("myLeBronFit","QR");
-	prof->Draw();
-	adctheta->cd(4);
-	TProfile *prof2 = hbotadctheta->ProfileX();
- 	prof2->Fit("myLeBronFit","QR");
-	prof2->Draw();
+//Draw X Positions Canvas
     
  	TCanvas *tdcpos = new TCanvas("tdcpos","X Positions",200,200,600,600);
  
@@ -322,8 +258,7 @@ void luterplots(Int_t nrun, Double_t nscint=1.50) {
 
         const Int_t nxbins = htheta->GetNbinsX();
         Double_t res[nxbins],x[nxbins];
-        Double_t chisquare  = htheta->Chi2Test(htheta2,"UW P CHI2",res);
-        cout << "Chi2 is " << chisquare << endl;
+        htheta->Chi2Test(htheta2,"UW P",res);
         Double_t thetabinsize = (thetahigh-thetalow)/nthetabins;
         for (Int_t iii=0; iii<nxbins; iii++) x[iii]=thetalow+iii*thetabinsize;
         TGraph *resgr = new TGraph(nxbins,x,res);
@@ -334,30 +269,4 @@ void luterplots(Int_t nrun, Double_t nscint=1.50) {
 	tdcpos->cd(5);
         resgr->Draw("APL");
 
-	tdcpos->cd(6);
-	//hmeantime->Fit("gaus");
-
-    	//TF1 *myfit = new TF1("myfit","[0]*pow(cos(x/180.0*3.14159),2)",-60,60);
-    	//myfit->SetParameter(0,140);
-	//htheta->Fit("myfit","QRW");
- 	
-	TCanvas *adctot = new TCanvas("adctot","Top and Bottom ADC Sums",225,225,600,600);
- 
-	adctot->Divide(1,2);
-	gStyle->SetOptFit(1);
-	adctot->cd(1);
-	hadctop->Draw();
-	adctot->cd(2);
-	hadcbot->Draw(); 
-  	
-
-	TCanvas *adcoverlay = new TCanvas("adcoverlay","Top and Bottom ADC Sum Overlays",250,250,600,600);
-	adcoverlay->Divide(1,2);
-	adcoverlay->cd(1);
-	ovhadctop->SetLineColor(kRed);
-	ovhadctop->Draw();
-	ovhadcbot->Draw("SAME");
-
-	adcoverlay->cd(2);
-	hadcoverlay->Draw();
 }
